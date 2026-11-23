@@ -103,6 +103,33 @@ honestly, including the limits, and the whole of the cryptography is one
 
 ---
 
+## Why the download is 70 MB
+
+Fair question for something this small in scope. Almost none of it is
+ClipVault:
+
+| | |
+|---|---|
+| Qt (Core, Gui, Widgets, Svg + PyQt bindings) | ~38 MB |
+| `cryptography` (its Rust core and OpenSSL) | ~14 MB |
+| The Python runtime | ~8 MB |
+| Pillow, pywin32, psutil | ~5 MB |
+| **ClipVault itself** | **~120 KB of Python** |
+
+The build already drops what is never used - the 20 MB software OpenGL
+rasteriser, Qt's PDF and networking modules, and image codecs for formats that
+never reach the clipboard. That took it from 117 MB to 75 MB. The prune list
+is at the top of [`clipboard/clipboard.spec`](clipboard/clipboard.spec).
+
+UPX would roughly halve it again, and is deliberately not used: antivirus
+engines treat packed executables as a malware signal, and a download people
+are warned about is worse than a large one.
+
+Getting below ~10 MB means not shipping Qt and Python at all - a rewrite
+against the Win32 API in a compiled language. That is a different project, not
+a build flag. The resident footprint is ~85 MB, which is the price of keeping
+the window built and ready so Win+V is instant.
+
 ## Why it is fast
 
 The window is built once, when the daemon starts, and kept warm. Win+V shows
