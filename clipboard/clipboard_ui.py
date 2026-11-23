@@ -111,7 +111,24 @@ TRASH_SVG = b"""<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"
   <line x1="14" y1="10" x2="14" y2="17"/>
 </svg>"""
 
+TRIANGLE_DOWN_SVG = b"""<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 12 12">
+  <polygon points="2,4 10,4 6,9" fill="#b4b4b4"/>
+</svg>"""
+
+TRIANGLE_RIGHT_SVG = b"""<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 12 12">
+  <polygon points="4,2 9,6 4,10" fill="#b4b4b4"/>
+</svg>"""
+
 _ICON_CACHE = {}
+
+
+def svg_pixmap(markup: bytes, size: int) -> QPixmap:
+    pix = QPixmap(size, size)
+    pix.fill(QColor(0, 0, 0, 0))
+    painter = QPainter(pix)
+    QSvgRenderer(QByteArray(markup)).render(painter)
+    painter.end()
+    return pix
 
 
 def svg_icon(markup: bytes, size: int = 15) -> QIcon:
@@ -260,12 +277,9 @@ QFrame.section-header:hover {
 }
 
 QLabel.section-caret {
-    color: #b4b4b4;
-    font-size: 11px;
-    min-width: 13px;
-    max-width: 13px;
     padding: 0px;
     margin: 0px;
+    background: transparent;
 }
 
 QLabel.section-label {
@@ -302,22 +316,25 @@ QFrame.item-row[queued="true"] {
     border: 1px solid #3a3a3a;
 }
 
+/* Nothing is drawn until the row is actually picked - a column of empty
+   circles was just noise. The space stays reserved so rows do not jump
+   sideways when a number appears, and a border fades in on hover so the
+   target is still findable with the mouse. */
 QPushButton.sel-badge {
     background: transparent;
-    border: 1px solid #2a2a2a;
+    border: 1px solid transparent;
     border-radius: 0px;
     min-width: 22px;
     max-width: 22px;
     min-height: 22px;
     max-height: 22px;
-    color: #5a5a5a;
+    color: #8a8a8a;
     font-size: 11px;
     font-weight: 700;
     padding: 0px;
 }
 QPushButton.sel-badge:hover {
-    border-color: #444444;
-    color: #cfcfcf;
+    border-color: #3a3a3a;
     background-color: #161616;
 }
 QPushButton.sel-badge[active="true"] {
@@ -483,8 +500,7 @@ class SectionHeader(QFrame):
 
     toggled = pyqtSignal(str)
 
-    TRI_OPEN = "▼"       # disclosure triangle, section open
-    TRI_SHUT = "▶"       # disclosure triangle, section folded
+    TRI_SIZE = 12       # drawn, not a glyph: see TRIANGLE_*_SVG
 
     def __init__(self, name, collapsed, count, parent=None):
         super().__init__(parent)
@@ -496,8 +512,11 @@ class SectionHeader(QFrame):
         lay.setContentsMargins(6, 9, 6, 3)
         lay.setSpacing(7)
 
-        self.caret = QLabel(self.TRI_SHUT if collapsed else self.TRI_OPEN)
+        self.caret = QLabel()
+        self.caret.setPixmap(svg_pixmap(
+            TRIANGLE_RIGHT_SVG if collapsed else TRIANGLE_DOWN_SVG, self.TRI_SIZE))
         self.caret.setProperty("class", "section-caret")
+        self.caret.setFixedSize(self.TRI_SIZE, self.TRI_SIZE)
         self.caret.setAlignment(Qt.AlignmentFlag.AlignVCenter | Qt.AlignmentFlag.AlignHCenter)
         lay.addWidget(self.caret, 0, Qt.AlignmentFlag.AlignVCenter)
 
@@ -625,7 +644,7 @@ class ItemRow(QFrame):
         layout.setSpacing(10)
 
         # Multi-paste select badge
-        self.sel_btn = QPushButton("○")
+        self.sel_btn = QPushButton("")
         self.sel_btn.setProperty("class", "sel-badge")
         self.sel_btn.setToolTip("Add to multi-paste (or press Tab)")
         self.sel_btn.clicked.connect(lambda: self.toggle_queue.emit(self.item_id))
@@ -718,7 +737,7 @@ class ItemRow(QFrame):
     def set_queued(self, in_queue: bool, order_num: int = 0):
         self.setProperty("queued", "true" if in_queue else "false")
         self.sel_btn.setProperty("active", "true" if in_queue else "false")
-        self.sel_btn.setText(str(order_num) if in_queue else "○")
+        self.sel_btn.setText(str(order_num) if in_queue else "")
         self.style().unpolish(self.sel_btn)
         self.style().polish(self.sel_btn)
         self.style().unpolish(self)
@@ -1148,7 +1167,7 @@ class ClipboardPopup(QWidget):
             self.clear_sel_btn.setEnabled(True)
             self.cancel_btn.show()
         else:
-            self.sel_lbl.setText("○ or Tab to pick several, then Paste")
+            self.sel_lbl.setText("Tab, or drag down the list, to pick several")
             self.clear_sel_btn.setEnabled(False)
             self.cancel_btn.hide()
 

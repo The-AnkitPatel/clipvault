@@ -4,7 +4,7 @@ setlocal enabledelayedexpansion
 
 echo.
 echo ===================================================
-echo     Windows Enhancement Suite - Uninstaller
+echo     ClipVault - Uninstaller
 echo ===================================================
 echo.
 

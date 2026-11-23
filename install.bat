@@ -4,8 +4,8 @@ setlocal enabledelayedexpansion
 
 echo.
 echo ===================================================
-echo     Windows Enhancement Suite - Installer
-echo     Clipboard Manager + Performance Boost
+echo     ClipVault - Installer
+echo     Encrypted Clipboard History + Flameshot
 echo ===================================================
 echo.
 
