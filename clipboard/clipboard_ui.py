@@ -1,8 +1,8 @@
 """
-Clipboard history popup UI — AMOLED Dark PyQt6 window.
+ClipVault - clipboard history popup UI — AMOLED Dark PyQt6 window.
 
-Imported by both clipboard-popup.exe (standalone) and clipboard-daemon.exe,
-which keeps one instance warm so Win+V has no process to start.
+Imported by both clipvault-popup.exe (standalone) and clipvault.exe, which
+keeps one instance warm so Win+V has no process to start.
 Matches Linux GTK3 clipboard-popup 1:1 in features, shortcuts, and styling.
 """
 
@@ -131,13 +131,19 @@ SETTINGS_FILE = HISTORY_DIR / "popup-settings.json"
 
 
 def load_settings():
-    """Small per-user UI state. The popup is a fresh process every time, so
-    anything the user collapses has to live on disk to stick."""
+    """Small per-user UI state. The window may be rebuilt at any time, so
+    anything the user collapses has to live on disk to stick.
+
+    Goes through the vault like everything else in the store - it was being
+    written sealed and read as plain text, which quietly threw the state away.
+    """
     try:
         if SETTINGS_FILE.exists():
-            data = json.loads(SETTINGS_FILE.read_text(encoding="utf-8"))
-            if isinstance(data, dict):
-                return data
+            raw = read_secure(SETTINGS_FILE)
+            if raw:
+                data = json.loads(raw.decode("utf-8"))
+                if isinstance(data, dict):
+                    return data
     except Exception:
         pass
     return {}
@@ -145,9 +151,7 @@ def load_settings():
 
 def save_settings(data):
     try:
-        tmp = SETTINGS_FILE.with_suffix(".tmp")
-        tmp.write_text(json.dumps(data, indent=2), encoding="utf-8")
-        tmp.replace(SETTINGS_FILE)
+        write_secure(SETTINGS_FILE, json.dumps(data, indent=2).encode("utf-8"))
     except Exception:
         pass
 
@@ -735,7 +739,7 @@ class ClipboardPopup(QWidget):
         self.standalone = standalone
         self._index_mtime = None
         self.setObjectName("PopupWindow")
-        self.setWindowTitle("Clipboard")
+        self.setWindowTitle("ClipVault")
         self.setWindowFlags(
             Qt.WindowType.FramelessWindowHint |
             Qt.WindowType.WindowStaysOnTopHint |
@@ -939,7 +943,7 @@ class ClipboardPopup(QWidget):
         header = QHBoxLayout()
         header.setSpacing(10)
 
-        title = QLabel("Clipboard")
+        title = QLabel("ClipVault")
         title.setProperty("class", "header-title")
         header.addWidget(title)
 
@@ -1445,18 +1449,18 @@ class ClipboardPopup(QWidget):
 
 
 def main():
-    mutex = win32event.CreateMutex(None, False, "Global\\WindowsClipboardPopupMutex")
+    mutex = win32event.CreateMutex(None, False, "Global\\ClipVaultPopupMutex")
     if win32api.GetLastError() == winerror.ERROR_ALREADY_EXISTS:
         # Bring existing window to front if running
         try:
-            hwnd = win32gui.FindWindow(None, "Clipboard")
+            hwnd = win32gui.FindWindow(None, "ClipVault")
             if hwnd:
                 win32gui.SetForegroundWindow(hwnd)
         except Exception:
             pass
         sys.exit(0)
 
-    parser = argparse.ArgumentParser(description="Clipboard popup window")
+    parser = argparse.ArgumentParser(description="ClipVault popup window")
     parser.add_argument("--target-hwnd", type=int, default=None, help="Target window HWND for paste")
     args = parser.parse_args()
 

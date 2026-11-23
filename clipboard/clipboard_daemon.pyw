@@ -1,5 +1,5 @@
 """
-Clipboard history daemon for Windows — monitors clipboard via native WM_CLIPBOARDUPDATE,
+ClipVault - clipboard history daemon for Windows — monitors clipboard via native WM_CLIPBOARDUPDATE,
 saves text and images (including Flameshot screenshots) to %APPDATA%/clipboard-history/
 with active window app metadata.
 Provides global Win+V, Alt+V, and PrintScreen (Flameshot) hotkey handling.
@@ -52,8 +52,10 @@ from clipboard_common import (
     HISTORY_DIR, INDEX_FILE, LOG_FILE, MAX_ITEMS,
     load_index, save_index, active_app, fmt_label,
     get_clip_text, get_clip_image_bytes, find_flameshot_exe, clip_is_sensitive,
-    get_clip_rich, get_clip_files, write_secure, migrate_history
+    get_clip_rich, get_clip_files, write_secure, migrate_history,
+    unlock_vault, vault_needs_passphrase
 )
+from clipvault_crypto import VaultLocked
 
 # Rotating, so a machine left running for months does not end up with a
 # multi-megabyte log file.
@@ -175,10 +177,10 @@ def safe_print(*args, **kwargs):
 
 
 def acquire_single_instance():
-    mutex_name = "Global\\WindowsClipboardHistoryDaemon"
+    mutex_name = "Global\\ClipVaultDaemon"
     mutex = win32event.CreateMutex(None, False, mutex_name)
     if win32api.GetLastError() == winerror.ERROR_ALREADY_EXISTS:
-        safe_print("Another clipboard-daemon is already running -- exiting.")
+        safe_print("ClipVault is already running -- exiting.")
         sys.exit(0)
     return mutex
 
@@ -293,16 +295,16 @@ def resolve_popup_cmd():
     clipboard-daemon.exe and __file__ points inside the bundle — feeding
     either to Popen just restarts the daemon (which then exits on the
     single-instance mutex) and no popup ever appears. So resolve the sibling
-    clipboard-popup.exe when frozen, and the venv interpreter when running
+    clipvault-popup.exe when frozen, and the venv interpreter when running
     from source.
     """
     if getattr(sys, "frozen", False):
         exe_dir = Path(sys.executable).resolve().parent
-        for cand in (exe_dir / "clipboard-popup.exe",
-                     exe_dir.parent / "bin" / "clipboard-popup.exe"):
+        for cand in (exe_dir / "clipvault-popup.exe",
+                     exe_dir.parent / "bin" / "clipvault-popup.exe"):
             if cand.is_file():
                 return [str(cand)]
-        logging.error("frozen daemon could not find clipboard-popup.exe near %s", exe_dir)
+        logging.error("frozen build could not find clipvault-popup.exe near %s", exe_dir)
         return None
 
     here = Path(__file__).resolve().parent
@@ -311,7 +313,7 @@ def resolve_popup_cmd():
     pythonw = root / ".venv" / "Scripts" / "pythonw.exe"
     if pythonw.is_file() and script.is_file():
         return [str(pythonw), str(script)]
-    packaged = root / "bin" / "clipboard-popup.exe"
+    packaged = root / "bin" / "clipvault-popup.exe"
     if packaged.is_file():
         return [str(packaged)]
     if script.is_file():
@@ -480,14 +482,14 @@ def setup():
     _wndclass_holder = WNDCLASSEXW()
     _wndclass_holder.cbSize = ctypes.sizeof(WNDCLASSEXW)
     _wndclass_holder.lpfnWndProc = _c_proc_holder
-    _wndclass_holder.lpszClassName = "ClipboardEnhDaemon2"
+    _wndclass_holder.lpszClassName = "ClipVaultListener"
     _wndclass_holder.hInstance = kernel32.GetModuleHandleW(None)
 
     atom = user32.RegisterClassExW(ctypes.byref(_wndclass_holder))
     logging.info(f"RegisterClassExW atom={atom}")
 
     hwnd = user32.CreateWindowExW(
-        0, "ClipboardEnhDaemon2", "ClipboardEnhDaemon2Wnd",
+        0, "ClipVaultListener", "ClipVaultListenerWindow",
         0, 0, 0, 0, 0,
         wintypes.HWND(-3), None, _wndclass_holder.hInstance, None
     )
@@ -520,6 +522,48 @@ def setup():
     return hwnd
 
 
+def ask_passphrase(attempt):
+    """Prompt for the vault passphrase. Only reached if one has been set."""
+    from PyQt6.QtWidgets import QInputDialog, QLineEdit
+    prompt = ("Enter your ClipVault passphrase:" if attempt == 0
+              else "That passphrase did not open the vault. Try again:")
+    text, ok = QInputDialog.getText(None, "ClipVault", prompt, QLineEdit.EchoMode.Password)
+    return (text if ok else None)
+
+
+def open_the_vault():
+    """Unlock the data key before anything touches the store.
+
+    With the default DPAPI wrapping this is silent. If the user has set a
+    passphrase, ask for it - three tries, then give up rather than run with an
+    unreadable history.
+    """
+    if not vault_needs_passphrase():
+        try:
+            unlock_vault()
+            return True
+        except Exception as exc:
+            logging.exception("could not unlock the vault: %s", exc)
+            return False
+
+    for attempt in range(3):
+        passphrase = ask_passphrase(attempt)
+        if passphrase is None:
+            logging.info("passphrase prompt cancelled, exiting")
+            return False
+        try:
+            unlock_vault(passphrase)
+            logging.info("vault unlocked with passphrase")
+            return True
+        except VaultLocked:
+            continue
+        except Exception as exc:
+            logging.exception("unlock failed: %s", exc)
+            return False
+    logging.warning("three wrong passphrases, exiting")
+    return False
+
+
 def ensure_autostart():
     """Keep this thing starting itself at login, with no help from the user.
 
@@ -537,12 +581,19 @@ def ensure_autostart():
                             r"Software\Microsoft\Windows\CurrentVersion\Run",
                             0, winreg.KEY_READ | winreg.KEY_WRITE) as key:
             try:
-                current, _ = winreg.QueryValueEx(key, "ClipboardEnhancementDaemon")
+                current, _ = winreg.QueryValueEx(key, "ClipVault")
             except FileNotFoundError:
                 current = None
             if current != exe:
-                winreg.SetValueEx(key, "ClipboardEnhancementDaemon", 0, winreg.REG_SZ, exe)
+                winreg.SetValueEx(key, "ClipVault", 0, winreg.REG_SZ, exe)
                 logging.info("autostart entry written -> %s", exe)
+            # Drop the entry used before the rename, so it cannot start a
+            # stale copy alongside this one.
+            try:
+                winreg.DeleteValue(key, "ClipboardEnhancementDaemon")
+                logging.info("removed the pre-rename autostart entry")
+            except FileNotFoundError:
+                pass
     except Exception as e:
         logging.warning("could not ensure autostart: %s", e)
 
@@ -599,8 +650,8 @@ def toggle_capture(checked):
     capture_paused = bool(checked)
     logging.info("clipboard capture %s", "paused" if capture_paused else "resumed")
     if tray_icon:
-        tray_icon.setToolTip("Clipboard - capture paused" if capture_paused
-                             else "Clipboard - Win+V for history")
+        tray_icon.setToolTip("ClipVault - capture paused" if capture_paused
+                             else "ClipVault - Win+V for history")
 
 
 def tray_clear_history():
@@ -632,7 +683,7 @@ def build_tray_icon():
             logging.warning("no system tray available")
             return
         tray_icon = QSystemTrayIcon(QIcon(make_tray_pixmap()))
-        tray_icon.setToolTip("Clipboard - Win+V for history")
+        tray_icon.setToolTip("ClipVault - Win+V for history")
 
         menu = QMenu()
         act_open = QAction("Open clipboard	Win+V", menu)
@@ -679,7 +730,7 @@ def main():
 
     _mutex_holder = acquire_single_instance()
 
-    safe_print(f"clipboard-daemon started, storage: {HISTORY_DIR}")
+    safe_print(f"ClipVault started, storage: {HISTORY_DIR}")
 
     # Qt's event loop pumps the same message queue as GetMessage, so the
     # low-level keyboard hook and the clipboard listener window both keep
@@ -690,10 +741,13 @@ def main():
     ensure_autostart()
     ensure_windows_settings()
 
+    if not open_the_vault():
+        return
+
     try:
         converted = migrate_history()
         if converted:
-            logging.info("encrypted %d existing history file(s) at rest", converted)
+            logging.info("re-sealed %d stored file(s) in the current format", converted)
     except Exception as e:
         logging.warning("history migration failed: %s", e)
 
@@ -704,7 +758,7 @@ def main():
     threading.Thread(target=process_clipboard_update, daemon=True).start()
 
     flameshot = "OK" if find_flameshot_exe() else "NOT FOUND"
-    logging.info(f"clipboard-daemon ready. Flameshot: {flameshot}")
+    logging.info(f"ClipVault ready. Flameshot: {flameshot}")
     safe_print(f"[OK] Win+V / Alt+V -> Clipboard | PrtScn -> Flameshot ({flameshot})")
 
     try:

@@ -8,7 +8,7 @@ echo.
 set "SCRIPT_DIR=%~dp0"
 for %%I in ("%SCRIPT_DIR%..") do set "BASE_DIR=%%~fI"
 
-if not exist "%BASE_DIR%\bin\clipboard-daemon.exe" (
+if not exist "%BASE_DIR%\bin\clipvault.exe" (
     echo [ERROR] Build the suite first: clipboard\build-exe.bat
     exit /b 1
 )
@@ -25,6 +25,6 @@ if %ERRORLEVEL% NEQ 0 (
 )
 
 echo [2/2] Done.
-echo Installer: %BASE_DIR%\release\ClipboardEnhancementSetup.exe
+echo Installer: %BASE_DIR%\release\ClipVaultSetup.exe
 echo.
 pause

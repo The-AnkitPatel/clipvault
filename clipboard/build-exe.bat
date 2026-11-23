@@ -22,10 +22,10 @@ if %ERRORLEVEL% NEQ 0 (
 
 echo [2/3] Deploying binaries to %BASE_DIR%\bin ...
 if exist "%BASE_DIR%\bin" rd /s /q "%BASE_DIR%\bin"
-xcopy /E /I /Y "%SCRIPT_DIR%dist\clipboard" "%BASE_DIR%\bin" >nul
+xcopy /E /I /Y "%SCRIPT_DIR%dist\clipvault" "%BASE_DIR%\bin" >nul
 
 echo [3/3] Build completed successfully!
-echo Executable located at: %BASE_DIR%\bin\clipboard-daemon.exe
-echo Executable located at: %BASE_DIR%\bin\clipboard-popup.exe
+echo Executable located at: %BASE_DIR%\bin\clipvault.exe
+echo Executable located at: %BASE_DIR%\bin\clipvault-popup.exe
 echo.
 pause

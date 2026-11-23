@@ -19,76 +19,120 @@ import win32process
 import win32api
 import win32con
 import win32clipboard
-import win32crypt
 
 # Storage locations
 APPDATA_DIR = Path(os.environ.get("APPDATA", Path.home() / "AppData/Roaming"))
-HISTORY_DIR = APPDATA_DIR / "clipboard-history"
+HISTORY_DIR = APPDATA_DIR / "ClipVault"
+LEGACY_DIR  = APPDATA_DIR / "clipboard-history"
 INDEX_FILE  = HISTORY_DIR / "index.json"
-LOG_FILE    = HISTORY_DIR / "daemon.log"
+LOG_FILE    = HISTORY_DIR / "clipvault.log"
 MAX_ITEMS   = 200
 
+
+def _adopt_legacy_store():
+    """Take over the store used before the rename, in one move.
+
+    A rename on the same volume, so there is no window where the clips exist
+    in two places or in neither.
+    """
+    try:
+        if HISTORY_DIR.is_dir() and any(HISTORY_DIR.iterdir()):
+            return
+        if not (LEGACY_DIR.is_dir() and any(LEGACY_DIR.iterdir())):
+            return
+        if HISTORY_DIR.is_dir():
+            HISTORY_DIR.rmdir()          # only reached when it is empty
+        LEGACY_DIR.rename(HISTORY_DIR)
+    except Exception:
+        pass
+
+
+_adopt_legacy_store()
 HISTORY_DIR.mkdir(parents=True, exist_ok=True)
 
-# -- Encryption at rest -------------------------------------------------------
-# Everything written to HISTORY_DIR goes through DPAPI, tied to this Windows
-# account. Another user on the machine, or anyone reading the files off disk,
-# gets ciphertext. Files without the magic header are pre-encryption leftovers:
-# they are read as-is, then rewritten encrypted by migrate_history().
+# The log kept its old name until the rename; carry it across so history of
+# what the daemon did is not split across two files.
+try:
+    _old_log = HISTORY_DIR / "daemon.log"
+    if _old_log.is_file() and not LOG_FILE.exists():
+        _old_log.rename(LOG_FILE)
+except Exception:
+    pass
 
-ENC_MAGIC = b"CLPE1\n"
-ENC_ENTROPY = b"windows-enhancements/clipboard-history/v1"
+# -- Encryption at rest ------------------------------------------------------
+# All of it lives in clipvault_crypto; this is just the file-level plumbing.
+# Every stored file is sealed with AES-256-GCM under a random data key that is
+# itself wrapped by DPAPI (or by an Argon2id-derived key, if a passphrase is
+# set). The file's path inside the store is authenticated along with the
+# contents, so entries cannot be swapped around.
+
+from clipvault_crypto import Vault, VaultLocked
+
+_VAULT = Vault(HISTORY_DIR)
+
+# Files that must stay readable without the key, or that hold the key itself.
+UNSEALED_NAMES = ("keyring.json", "keyring.tmp")
+SKIP_SUFFIXES = (".log", ".tmp", ".log.1", ".log.2")
 
 
-def encrypt_bytes(data: bytes) -> bytes:
+def vault() -> Vault:
+    """The process-wide vault, unlocked on first use."""
+    if not _VAULT.unlocked:
+        _VAULT.unlock()
+    return _VAULT
+
+
+def unlock_vault(passphrase=None):
+    """Explicit unlock, for the daemon's startup path."""
+    return _VAULT.unlock(passphrase)
+
+
+def vault_needs_passphrase() -> bool:
+    return _VAULT.is_passphrase_protected()
+
+
+def seal_label(path) -> str:
+    """What gets authenticated alongside the contents: the path within the
+    store, so a thumbnail cannot stand in for the full image it came from."""
+    path = Path(path)
     try:
-        blob = win32crypt.CryptProtectData(data, "clipboard-history",
-                                           ENC_ENTROPY, None, None, 0)
-        return ENC_MAGIC + blob
-    except Exception:
-        # Never drop a clip just because encryption failed.
-        return data
-
-
-def decrypt_bytes(raw: bytes) -> bytes:
-    if not raw.startswith(ENC_MAGIC):
-        return raw
-    try:
-        _descr, data = win32crypt.CryptUnprotectData(
-            raw[len(ENC_MAGIC):], ENC_ENTROPY, None, None, 0)
-        return data
-    except Exception:
-        return b""
+        return path.relative_to(HISTORY_DIR).as_posix()
+    except ValueError:
+        return path.name
 
 
 def write_secure(path, data: bytes):
-    """Encrypt, then swap into place so a reader never sees a half-written file."""
+    """Seal, then swap into place so a reader never sees a half-written file."""
     path = Path(path)
     tmp = path.with_name(path.name + ".tmp")
-    tmp.write_bytes(encrypt_bytes(data))
+    tmp.write_bytes(vault().seal(data, seal_label(path)))
     tmp.replace(path)
 
 
 def read_secure(path) -> bytes:
+    path = Path(path)
     try:
-        return decrypt_bytes(Path(path).read_bytes())
+        return vault().unseal(path.read_bytes(), seal_label(path))
     except Exception:
         return b""
 
 
 def is_encrypted(path) -> bool:
+    """True when the file is already in the current sealed format."""
     try:
-        with open(path, "rb") as fh:
-            return fh.read(len(ENC_MAGIC)) == ENC_MAGIC
+        with open(path, "rb") as handle:
+            return Vault.is_current(handle.read(len(Vault.MAGIC) + 1))
     except Exception:
         return False
 
 
-SKIP_SUFFIXES = (".log", ".tmp", ".log.1", ".log.2")
-
-
 def migrate_history():
-    """Encrypt anything still sitting in plaintext. Safe to run on every start."""
+    """Bring every stored file up to the current format.
+
+    Handles both plain files from before any encryption and the first-format
+    DPAPI containers. Safe to run on every start; it only touches what is out
+    of date.
+    """
     converted = 0
     targets = []
     try:
@@ -99,6 +143,8 @@ def migrate_history():
     except Exception:
         return 0
     for path in targets:
+        if path.name in UNSEALED_NAMES:
+            continue
         if any(path.name.endswith(sfx) for sfx in SKIP_SUFFIXES):
             continue
         try:
@@ -107,7 +153,10 @@ def migrate_history():
             raw = path.read_bytes()
             if not raw:
                 continue
-            write_secure(path, raw)
+            opened = vault().unseal(raw, seal_label(path))
+            if not opened:
+                continue
+            write_secure(path, opened)
             converted += 1
         except Exception:
             pass

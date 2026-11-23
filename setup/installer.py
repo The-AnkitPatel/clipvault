@@ -1,8 +1,8 @@
-r"""One-file installer for the Windows Clipboard Enhancement suite.
+r"""One-file installer for ClipVault.
 
 Everything the suite needs is packed inside this executable. Running it:
 
-  1. copies the daemon into %LOCALAPPDATA%\ClipboardEnhancement
+  1. copies ClipVault into %LOCALAPPDATA%\ClipVault
   2. frees Win+V by turning off the built-in Windows clipboard history
   3. frees PrtScn by turning off the Snipping Tool takeover
   4. registers itself to start at login
@@ -22,10 +22,10 @@ import time
 import winreg
 from pathlib import Path
 
-APP_NAME = "ClipboardEnhancement"
+APP_NAME = "ClipVault"
 RUN_KEY = r"Software\Microsoft\Windows\CurrentVersion\Run"
-RUN_VALUE = "ClipboardEnhancementDaemon"
-DAEMON_EXE = "clipboard-daemon.exe"
+RUN_VALUE = "ClipVault"
+DAEMON_EXE = "clipvault.exe"
 NO_WINDOW = 0x08000000
 
 MB_OK = 0x40
@@ -34,7 +34,7 @@ MB_YESNO = 0x24
 IDYES = 6
 
 
-def message(text, title="Clipboard Enhancement", flags=MB_OK):
+def message(text, title="ClipVault", flags=MB_OK):
     return ctypes.windll.user32.MessageBoxW(0, text, title, flags)
 
 
@@ -53,7 +53,7 @@ def install_dir():
 
 
 def stop_running():
-    for exe in (DAEMON_EXE, "clipboard-popup.exe"):
+    for exe in (DAEMON_EXE, "clipvault-popup.exe"):
         subprocess.run(["taskkill", "/F", "/IM", exe],
                        capture_output=True, creationflags=NO_WINDOW)
     time.sleep(1.0)
@@ -101,10 +101,10 @@ def start_menu_shortcut(target):
         programs = Path(os.environ["APPDATA"]) / "Microsoft/Windows/Start Menu/Programs"
         programs.mkdir(parents=True, exist_ok=True)
         shell = win32com.client.Dispatch("WScript.Shell")
-        link = shell.CreateShortcut(str(programs / "Clipboard Enhancement.lnk"))
+        link = shell.CreateShortcut(str(programs / "ClipVault.lnk"))
         link.TargetPath = str(target)
         link.WorkingDirectory = str(target.parent)
-        link.Description = "Clipboard history - press Win+V"
+        link.Description = "ClipVault - clipboard history, press Win+V"
         link.Save()
     except Exception:
         pass
@@ -146,19 +146,19 @@ def install():
         return 1
 
     message(
-        "Clipboard Enhancement is installed and running.\n\n"
+        "ClipVault is installed and running.\n\n"
         "  Win+V      open your clipboard history\n"
         "  PrtScn     Flameshot screenshot (if Flameshot is installed)\n"
         "  Tray icon  pause capture, clear history, or quit\n\n"
         "It starts itself at login from now on. Your history is encrypted\n"
-        "with your Windows account under %APPDATA%\\clipboard-history.\n\n"
+        "with your Windows account under %APPDATA%\\ClipVault.\n\n"
         "To remove it later, run this installer again with --uninstall."
     )
     return 0
 
 
 def uninstall():
-    if message("Remove Clipboard Enhancement?\n\n"
+    if message("Remove ClipVault?\n\n"
                "Your saved clipboard history will be left where it is.",
                flags=MB_YESNO) != IDYES:
         return 0
@@ -173,7 +173,7 @@ def uninstall():
         pass
     shutil.rmtree(install_dir(), ignore_errors=True)
     message("Removed. Windows clipboard history and PrtScn are back to normal.\n\n"
-            "Your saved clips are still in %APPDATA%\\clipboard-history -\n"
+            "Your saved clips are still in %APPDATA%\\ClipVault -\n"
             "delete that folder yourself if you want them gone.")
     return 0
 
@@ -198,7 +198,7 @@ def check():
         # The installer is a windowed exe with nowhere to print, so leave
         # the report where a verification run can pick it up.
         try:
-            out = Path(tempfile.gettempdir()) / "clipboard-installer-check.txt"
+            out = Path(tempfile.gettempdir()) / "clipvault-installer-check.txt"
             out.write_text(report, encoding="utf-8")
         except Exception:
             pass
