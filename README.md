@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="assets/banner.svg" alt="ClipVault Banner" width="880"/>
+  <img src="assets/banner.svg" alt="ClipVault" width="880"/>
 </p>
 
 <p align="center">
@@ -13,65 +13,54 @@
 
 ---
 
-## Overview
+A clipboard that remembers, on Windows — and keeps what it remembers encrypted.
 
-**ClipVault** is a fast, tamper-proof, AMOLED-dark clipboard manager for Windows.
+Press **`Win+V`** and your clipboard history opens in about **38 milliseconds**: text, formatted content, images, screenshots, and files copied in Explorer. Pin items to keep them forever, or pick multiple clips to paste them in order. Everything written to disk is encrypted with **AES-256-GCM**.
 
-Press **`Win+V`** and your clipboard history opens in about **38 milliseconds**. Text, rich formatting, screenshots, images, and Explorer file copies are stored locally under authenticated **AES-256-GCM** encryption wrapped by **Windows DPAPI** or an **Argon2id** passphrase.
-
-Windows' built-in clipboard history is slow to open (~500–800 ms), stores clips unencrypted in plain text SQLite databases, and forgets images on reboot. ClipVault fixes that with an event-driven daemon, a pre-warmed UI, and zero-compromise encryption.
+Built because Windows' built-in clipboard history is slow to open, stores clips in plain text, and forgets images when you reboot.
 
 ---
 
-## Visual Preview
+## Preview
 
 <p align="center">
-  <img src="assets/clipvault-ui.png" alt="ClipVault AMOLED Dark UI" width="760"/>
-  <br/>
-  <em><b>Figure 1:</b> AMOLED Dark UI featuring pinned items, syntax code clips, image thumbnails, and Explorer file copies.</em>
-</p>
-
-<p align="center">
-  <img src="assets/glide-selection.png" alt="ClipVault Glide Multi-Selection" width="760"/>
-  <br/>
-  <em><b>Figure 2:</b> Continuous Glide Selection with numbered ordering (<code>[1]</code>, <code>[2]</code>, <code>[3]</code>) and atomic single-undo batch paste.</em>
+  <img src="assets/clipvault-ui.png" alt="ClipVault UI Preview" width="800"/>
 </p>
 
 ---
 
-## Why ClipVault is SOTA
+## How it compares
 
-ClipVault was built to replace Windows' built-in `Win+V` and outdated clipboard tools with modern cryptography and instant responsiveness:
-
-| Feature / Metric | ClipVault | Windows Native (Win+V) | Ditto | CopyQ |
+| Feature | ClipVault | Windows Clipboard (`Win+V`) | Ditto | CopyQ |
 | :--- | :--- | :--- | :--- | :--- |
-| **Popup Latency** | **~38 ms** (pre-warmed daemon) | ~350–800 ms (cold XAML launch) | ~150–300 ms (Win32 list) | ~200–500 ms (Qt widget launch) |
-| **Encryption at Rest** | **AES-256-GCM + DPAPI / Argon2id** | None (Plaintext SQLite) | Optional weak cipher | Optional basic encryption |
-| **Tamper Resistance** | **Authenticated AAD (path bound)** | None | None | None |
-| **Password Manager Privacy** | **Strictly honored** (`ExcludeClipboard...`) | Inconsistent | Records secrets indiscriminately | Requires manual regex |
-| **Format Fidelity** | **Text + HTML + RTF + Files + PNG** | Text + Images only | Raw formats | Plugin dependent |
-| **Multi-Item Paste** | **Continuous Glide Selection** (ordered single-undo) | Click one by one | Ctrl+Click (clunky) | Scripted multi-paste |
-| **Monitoring Overhead** | **0% CPU** (`WM_CLIPBOARDUPDATE` event) | OS integrated | Hook / periodic polling | Hook / polling |
-| **Flameshot Integration** | **Native PrtScn takeover into history** | None | None | None |
-| **Interface Design** | **Pure AMOLED Dark (#000000)** | Windows Fluent (heavy backdrop) | Legacy Win32 dialogs | Standard Qt theme |
+| **Popup speed** | **~38 ms** (pre-warmed window) | ~350–800 ms (cold XAML launch) | ~150–300 ms (Win32 list) | ~200–500 ms (Qt launch) |
+| **Encryption at rest** | **AES-256-GCM + DPAPI / Argon2id** | None (plaintext SQLite) | Optional password | Optional encryption |
+| **Tamper check** | **Path-bound AAD** | None | None | None |
+| **Password managers** | **Honors privacy flags** | Inconsistent | Records everything | Manual regex rules |
+| **Formats kept** | **Text + HTML + RTF + Files + PNG** | Text + Images only | Raw formats | Plugin dependent |
+| **Multi-item paste** | **Glide drag & drop (single-undo)** | Click one by one | Ctrl+Click | Scripted |
+| **Idle CPU usage** | **0%** (`WM_CLIPBOARDUPDATE` event) | Integrated in OS | Polling / hook | Polling / hook |
+| **Flameshot support** | **`PrtScn` takeover straight to history** | None | None | None |
+| **UI style** | **AMOLED dark (`#000000`)** | Fluent | Win32 classic | Qt desktop |
 
 ---
 
-## Key Features
+## What it does
 
-* ⚡ **Sub-40ms Instant Response:** The UI window is constructed when the background daemon boots and kept warm. Pressing `Win+V` shows an existing handle instead of launching a new process (~820 ms cold start down to ~38 ms).
-* 🔒 **Military-Grade Authenticated Encryption:** Every stored file (text, thumbnail, image, file path, index) is sealed with **AES-256-GCM** using fresh 96-bit random nonces. Each entry's storage path is bound as **Additional Authenticated Data (AAD)** to prevent file substitution or replay attacks.
-* 🛡️ **Zero-Leak Password Manager Privacy:** Automatically honors Windows clipboard privacy flags (`ExcludeClipboardContentFromMonitorProcessing` and `CanIncludeInClipboardHistory`). Secrets copied from Bitwarden, 1Password, KeePass, browsers, or Remote Desktop are never written to disk.
-* 🎯 **Continuous Glide-to-Select:** Click and drag downward across items to queue them in order (`[1]`, `[2]`, `[3]`). Drag back upward to remove items from the queue. Text clips are joined and pasted in a single keystroke so a single `Ctrl+Z` reverses the entire batch.
-* 📋 **Full Format Fidelity:**
-  * **Text & Code:** Retains full Unicode text with syntax spacing.
-  * **Rich Text (HTML & RTF):** Preserves formatting copied from Microsoft Word, Google Docs, or web browsers without collapsing into flat text.
-  * **Images & Screenshots:** Captures native PNG and DIB formats with lightweight, high-resolution 76x52 previews.
-  * **Explorer Files (`CF_HDROP`):** Restores real binary file objects to the clipboard, allowing you to paste files directly into folders or applications.
-* 📸 **Flameshot Screenshot Bridge:** Intercepts `PrtScn` to trigger Flameshot's screenshot overlay. Captured regions are automatically saved directly into the encrypted history.
-* 🏷️ **Intelligent App Attribution:** Inspects the active foreground process (`win32process`) and assigns clean source badges (e.g., `from vscode`, `from chrome`, `from terminal`, `from files`).
-* 📌 **Pinned Clips & Smart Cleanup:** Pinned items never expire and survive `Clear all`. Collapsible sections keep frequently used credentials or commands organized.
-* 🖤 **Minimalist AMOLED Dark Aesthetic:** Crafted with pitch-black `#000000` styling, sharp borders, slim custom scrollbars, and vector SVG icons.
+* **Instant popup (~38 ms):** The window is built once when the daemon starts and kept in memory. Pressing `Win+V` simply unhides the window instead of launching a fresh process.
+* **Encrypted at rest (AES-256-GCM):** Every clip, thumbnail, and index entry is encrypted using AES-256-GCM with a random 96-bit nonce. Each file's relative storage path is authenticated via Additional Authenticated Data (AAD) to prevent file swapping or replay.
+* **Key protection (DPAPI or Passphrase):** The master key is wrapped via Windows DPAPI under your user account by default. You can also opt into a passphrase derived with Argon2id (128 MiB, 4 passes, 4 lanes).
+* **Respects password manager privacy:** Listens for Windows clipboard flags (`ExcludeClipboardContentFromMonitorProcessing` and `CanIncludeInClipboardHistory`). Secrets copied from Bitwarden, 1Password, KeePass, or Remote Desktop are never recorded.
+* **Glide to select (multi-paste):** Drag the mouse downward to queue multiple clips in order (`[1]`, `[2]`, `[3]`). Drag upward to remove them. Pasting concatenated text items counts as a single action, so one `Ctrl+Z` undoes the whole batch.
+* **Full format fidelity:**
+  * **Text:** Retains Unicode text and code indentation.
+  * **Rich Text (HTML & RTF):** Preserves formatting copied from browsers, Word, or Google Docs.
+  * **Images & Screenshots:** Captures PNG and DIB clipboard images with 76x52 preview thumbnails.
+  * **Explorer Files (`CF_HDROP`):** Copies actual file references, not just path strings.
+* **Flameshot integration:** Takes over `PrtScn` to launch Flameshot's overlay, and automatically saves captured screenshots straight into the encrypted history.
+* **Source app badges:** Detects the foreground process and displays clean source tags (e.g. `from vscode`, `from chrome`, `from terminal`).
+* **Pinned clips:** Pinned items stay forever and survive "Clear all". Sections can be collapsed.
+* **Lightweight:** Stripped down PyQt6 bundle (no OpenGL, no WebEngine, no network libraries) without UPX packing to avoid false antivirus flags.
 
 ---
 
@@ -83,69 +72,55 @@ Download **`ClipVaultSetup.exe`** from [**Releases**](https://github.com/The-Ank
 ClipVaultSetup.exe
 ```
 
-That is the entire setup. One self-contained installer:
-1. Copies ClipVault into `%LOCALAPPDATA%\ClipVault`.
-2. Frees `Win+V` by disabling Windows' built-in clipboard history.
-3. Frees `PrtScn` from Snipping Tool conflicts.
-4. Registers auto-start on user login (`HKCU\...\Run`).
-5. Boots the daemon immediately.
+The installer:
+1. Copies the program to `%LOCALAPPDATA%\ClipVault`.
+2. Disables Windows' built-in clipboard history so `Win+V` belongs to ClipVault.
+3. Frees `PrtScn` from Snipping Tool.
+4. Adds startup entry in `HKCU\Software\Microsoft\Windows\CurrentVersion\Run`.
+5. Launches the background daemon.
 
-### To Uninstall
+### Uninstall
 
 ```cmd
 ClipVaultSetup.exe --uninstall
 ```
 
-Reverses all registry modifications and removes the binary directory.
+Reverses registry settings and deletes the program files.
 
 ---
 
-## Keyboard & Mouse Controls
+## Shortcuts & Controls
 
-| Shortcut / Action | Function |
+| Shortcut / Action | What it does |
 | :--- | :--- |
-| **`Win+V`** / **`Alt+V`** | Open or dismiss the ClipVault popup |
-| **Type text** | Real-time fuzzy filter by text content or source app (`from chrome`) |
-| **`Up` / `Down`** | Navigate through clipboard items |
-| **`Enter`** | Paste highlighted clip, or paste the entire multi-selection queue |
-| **`Tab`** | Toggle current item in/out of the multi-selection queue |
-| **`Delete`** | Permanently delete the highlighted clip from the vault |
-| **`Esc`** | Close popup |
-| **`PrtScn`** | Trigger Flameshot screenshot overlay directly into history |
-| **Click row** | Instantly paste item to target window |
-| **Click `★` / `☆`** | Pin or unpin item (pinned items survive "Clear all") |
-| **Click `✕`** | Delete individual clip |
-| **Glide Drag** | Click and drag down across rows to select in order; drag up to deselect |
+| **`Win+V`** / **`Alt+V`** | Open or close the vault |
+| **Type** | Filter clips by text content or source app (`from chrome`) |
+| **`Up` / `Down`** | Move through items |
+| **`Enter`** | Paste highlighted clip, or paste the queued selection |
+| **`Tab`** | Add or remove highlighted clip from multi-paste selection |
+| **`Delete`** | Delete highlighted clip |
+| **`Esc`** | Close window |
+| **`PrtScn`** | Open Flameshot overlay directly into history |
+| **Click row** | Paste item |
+| **Click `★` / `☆`** | Pin or unpin item |
+| **Click `✕`** | Delete item |
+| **Drag mouse** | Drag down across rows to select in order; drag back up to deselect |
 
 ---
 
-## Security Model
+## Security
 
-ClipVault operates on a zero-trust storage principle:
+* **DPAPI (default):** Key is protected by Windows `CryptProtectData` tied to your login credentials. Key file permissions are locked to your user account (`icacls /inheritance:r`).
+* **Argon2id (optional):** Key can be derived from a custom passphrase. Prompts on startup and aborts if incorrect.
+* **Integrity:** GCM auth tags guarantee modified or corrupted files fail to open rather than returning broken text.
 
-* **Default Wrap (DPAPI):** The 256-bit AES data encryption key is wrapped using Windows Data Protection API (`CryptProtectData`) tied to your Windows user logon credentials. The keyring file is ACL-hardened (`icacls /inheritance:r`) so other users on the system cannot read it.
-* **Passphrase Wrap (Argon2id):** Optional user-defined passphrase derived via **Argon2id** (128 MiB memory cost, 4 passes, 4 lanes, random 16-byte salt). ClipVault prompts for password on startup and terminates if authentication fails.
-* **Integrity Checked:** Tampering with any file in `%APPDATA%\ClipVault` causes decryption to fail and reject the file rather than returning garbage data.
-
-For detailed threat modeling and boundary guarantees, see [SECURITY.md](SECURITY.md) and [`clipvault_crypto.py`](clipboard/clipvault_crypto.py).
+Read [SECURITY.md](SECURITY.md) and [`clipvault_crypto.py`](clipboard/clipvault_crypto.py) for the complete threat model and cryptographic details.
 
 ---
 
-## Architecture
+## Building from source
 
-ClipVault runs as a lightweight single-process daemon hosting a Qt event loop:
-1. **Low-Level Keyboard Hook (`WH_KEYBOARD_LL`):** Catches `Win+V`, `Alt+V`, and `PrtScn` before Windows consumes them, injecting synthetic keystrokes to prevent Start Menu popups.
-2. **Event-Driven Listener (`WM_CLIPBOARDUPDATE`):** Uses Win32 `AddClipboardFormatListener` to receive push notifications only when the clipboard changes (0% idle CPU).
-3. **Pre-Warmed Window:** Keeps the popup ready in memory (~26–80 MB RAM), dropping launch latency to 38 ms.
-4. **Binary Optimization:** Unused Qt6 modules (OpenGL, QtWebEngine, Network stack) are pruned from the release bundle, and UPX compression is omitted to eliminate AV false positives.
-
-For full architectural diagrams and execution flow, see [ARCHITECTURE.md](ARCHITECTURE.md).
-
----
-
-## Building from Source
-
-### Prerequisites
+### Requirements
 * Windows 10 or 11 (64-bit)
 * Python 3.12+
 
@@ -157,49 +132,49 @@ py -3.12 -m venv .venv
 .venv\Scripts\pip install -r requirements.txt
 ```
 
-### Running in Development
+### Run in development
 
 ```cmd
 .venv\Scripts\python clipboard\clipboard_daemon.pyw
 ```
 
-### Compiling Binaries
+### Build executables
 
 ```cmd
-clipboard\build-exe.bat        rem Compiles bin\clipvault.exe and bin\clipvault-popup.exe
-setup\build-installer.bat      rem Generates release\ClipVaultSetup.exe
+clipboard\build-exe.bat        rem Builds bin\clipvault.exe and bin\clipvault-popup.exe
+setup\build-installer.bat      rem Builds release\ClipVaultSetup.exe
 ```
 
-### Running Tests
+### Tests
 
 ```cmd
-.venv\Scripts\python tests\test_vault.py
 .venv\Scripts\python tests\test_clipboard_formats.py
 .venv\Scripts\python tests\test_sensitive_clips.py
+.venv\Scripts\python tests\test_vault.py
 ```
 
 ---
 
-## File System Locations
+## Where things live
 
-| Directory / Target | Path |
+| Directory | What is there |
 | :--- | :--- |
-| **Binaries & Assets** | `%LOCALAPPDATA%\ClipVault\` |
-| **Encrypted History & Keyring** | `%APPDATA%\ClipVault\` |
-| **Auto-Start Registry** | `HKCU\Software\Microsoft\Windows\CurrentVersion\Run` |
+| **Binaries** | `%LOCALAPPDATA%\ClipVault\` |
+| **Clips, index, key** | `%APPDATA%\ClipVault\` |
+| **Startup entry** | `HKCU\Software\Microsoft\Windows\CurrentVersion\Run` |
 
-*Note: Uninstalling preserves your encrypted clips in `%APPDATA%\ClipVault`. You can remove that folder manually if you wish to purge all history.*
+*Note: Uninstalling leaves your clips in `%APPDATA%\ClipVault`. Delete the folder manually if you want all history removed.*
 
 ---
 
 ## Contributing
 
-Contributions, bug reports, and pull requests are welcome! Please read [CONTRIBUTING.md](CONTRIBUTING.md) and check [AGENTS.md](AGENTS.md) before submitting changes.
+See [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ---
 
 ## License
 
-Distributed under the **MIT License**. See [LICENSE](LICENSE) for details.
+MIT — see [LICENSE](LICENSE).
 
 Copyright (c) 2026 Ankit Patel.

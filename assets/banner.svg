@@ -1,87 +1,79 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 880 240" width="880" height="240">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 880 200" width="880" height="200">
   <defs>
     <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
       <stop offset="0%" stop-color="#090b0e"/>
       <stop offset="50%" stop-color="#0d1117"/>
       <stop offset="100%" stop-color="#050608"/>
     </linearGradient>
-    <linearGradient id="glow" x1="0%" y1="0%" x2="100%" y2="0%">
-      <stop offset="0%" stop-color="#238636" stop-opacity="0.3"/>
-      <stop offset="50%" stop-color="#3b82f6" stop-opacity="0.25"/>
-      <stop offset="100%" stop-color="#a855f7" stop-opacity="0.15"/>
-    </linearGradient>
-    <linearGradient id="textGrad" x1="0%" y1="0%" x2="100%" y2="0%">
-      <stop offset="0%" stop-color="#ffffff"/>
-      <stop offset="60%" stop-color="#f0f6fc"/>
-      <stop offset="100%" stop-color="#8b949e"/>
-    </linearGradient>
-    <radialGradient id="radialAccent" cx="20%" cy="25%" r="60%">
-      <stop offset="0%" stop-color="#58a6ff" stop-opacity="0.12"/>
+    <radialGradient id="radialAccent" cx="15%" cy="30%" r="55%">
+      <stop offset="0%" stop-color="#58a6ff" stop-opacity="0.10"/>
       <stop offset="100%" stop-color="#000000" stop-opacity="0"/>
     </radialGradient>
-    <filter id="subtleShadow" x="-10%" y="-10%" width="120%" height="120%">
-      <feDropShadow dx="0" dy="4" stdDeviation="6" flood-color="#000000" flood-opacity="0.5"/>
-    </filter>
   </defs>
 
   <!-- Background Base -->
-  <rect width="880" height="240" rx="12" fill="url(#bg)"/>
-  <rect width="880" height="240" rx="12" fill="url(#radialAccent)"/>
-  <rect width="878" height="238" x="1" y="1" rx="11" fill="none" stroke="#21262d" stroke-width="1.5"/>
-
-  <!-- Subtle Top Accent Line -->
-  <rect x="24" y="2" width="832" height="2" fill="url(#glow)"/>
+  <rect width="880" height="200" rx="10" fill="url(#bg)"/>
+  <rect width="880" height="200" rx="10" fill="url(#radialAccent)"/>
+  <rect width="878" height="198" x="1" y="1" rx="9" fill="none" stroke="#21262d" stroke-width="1.2"/>
 
   <!-- Logo Icon Container -->
-  <g transform="translate(48, 44)" filter="url(#subtleShadow)">
-    <rect width="68" height="68" rx="16" fill="#161b22" stroke="#30363d" stroke-width="1.5"/>
+  <g transform="translate(40, 36)">
+    <rect width="56" height="56" rx="12" fill="#161b22" stroke="#30363d" stroke-width="1.2"/>
     <!-- Vault / Clipboard Icon -->
-    <path d="M24 16 C24 13.8 25.8 12 28 12 L40 12 C42.2 12 44 13.8 44 16 L44 19 L47 19 C49.2 19 51 20.8 51 23 L51 51 C51 53.2 49.2 55 47 55 L21 55 C18.8 55 17 53.2 17 51 L17 23 C17 20.8 18.8 19 21 19 L24 19 Z" fill="#0d1117" stroke="#58a6ff" stroke-width="2"/>
-    <!-- Inner Lock/Keyhole -->
-    <circle cx="34" cy="35" r="4.5" fill="none" stroke="#58a6ff" stroke-width="2"/>
-    <path d="M34 39.5 L34 44" stroke="#58a6ff" stroke-width="2.2" stroke-linecap="round"/>
-    <rect x="28" y="15" width="12" height="4" rx="2" fill="#58a6ff"/>
+    <path d="M20 14 C20 12.2 21.4 10.8 23.2 10.8 L32.8 10.8 C34.6 10.8 36 12.2 36 14 L36 16.5 L38.5 16.5 C40.3 16.5 41.8 18 41.8 19.8 L41.8 42.2 C41.8 44 40.3 45.5 38.5 45.5 L17.5 45.5 C15.7 45.5 14.2 44 14.2 42.2 L14.2 19.8 C14.2 18 15.7 16.5 17.5 16.5 L20 16.5 Z" fill="#0d1117" stroke="#58a6ff" stroke-width="1.8"/>
+    <!-- Keyhole -->
+    <circle cx="28" cy="29" r="3.5" fill="none" stroke="#58a6ff" stroke-width="1.8"/>
+    <path d="M28 32.5 L28 36" stroke="#58a6ff" stroke-width="1.8" stroke-linecap="round"/>
+    <rect x="23" y="13" width="10" height="3" rx="1.5" fill="#58a6ff"/>
   </g>
 
-  <!-- Typography -->
-  <g transform="translate(136, 68)">
-    <text font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, sans-serif" font-size="34" font-weight="800" fill="url(#textGrad)" letter-spacing="-0.5">ClipVault</text>
-    <text x="145" y="-4" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="11" font-weight="700" fill="#3fb950" letter-spacing="1.5">v1.0.0 • OPEN SOURCE</text>
-    <text y="30" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="14.5" font-weight="400" fill="#8b949e">A state-of-the-art clipboard history engine for Windows sealed with AES-256-GCM.</text>
+  <!-- Title + Badge + Subtitle -->
+  <g transform="translate(114, 42)">
+    <!-- Title -->
+    <text x="0" y="27" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="28" font-weight="700" fill="#ffffff" letter-spacing="-0.3">ClipVault</text>
+
+    <!-- Version Badge (fixed offset x=138, no text overlap) -->
+    <g transform="translate(138, 9)">
+      <rect width="52" height="20" rx="4" fill="#162319" stroke="#238636" stroke-width="1"/>
+      <text x="26" y="14" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="11" font-weight="600" fill="#3fb950" text-anchor="middle">v1.0.0</text>
+    </g>
+
+    <!-- Plain Subtitle (No buzzwords) -->
+    <text x="0" y="52" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="14" font-weight="400" fill="#8b949e">A fast, encrypted clipboard history manager for Windows.</text>
   </g>
 
   <!-- Feature Metric Pills -->
-  <g transform="translate(48, 148)">
+  <g transform="translate(40, 122)">
     <!-- Pill 1: Latency -->
     <g transform="translate(0, 0)">
-      <rect width="180" height="42" rx="8" fill="#161b22" stroke="#30363d" stroke-width="1"/>
-      <circle cx="20" cy="21" r="5" fill="#3fb950"/>
-      <text x="34" y="25" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="12" font-weight="700" fill="#f0f6fc">38 ms</text>
-      <text x="78" y="25" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="11" font-weight="500" fill="#8b949e">Hot popup</text>
+      <rect width="186" height="38" rx="6" fill="#161b22" stroke="#30363d" stroke-width="1"/>
+      <circle cx="18" cy="19" r="4.5" fill="#3fb950"/>
+      <text x="32" y="23" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="12" font-weight="700" fill="#f0f6fc">~38 ms</text>
+      <text x="82" y="23" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="11" font-weight="400" fill="#8b949e">hotkey popup</text>
     </g>
 
     <!-- Pill 2: AES-256-GCM -->
-    <g transform="translate(192, 0)">
-      <rect width="206" height="42" rx="8" fill="#161b22" stroke="#30363d" stroke-width="1"/>
-      <circle cx="20" cy="21" r="5" fill="#58a6ff"/>
-      <text x="34" y="25" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="12" font-weight="700" fill="#f0f6fc">AES-256-GCM</text>
-      <text x="122" y="25" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="11" font-weight="500" fill="#8b949e">DPAPI sealed</text>
+    <g transform="translate(198, 0)">
+      <rect width="210" height="38" rx="6" fill="#161b22" stroke="#30363d" stroke-width="1"/>
+      <circle cx="18" cy="19" r="4.5" fill="#58a6ff"/>
+      <text x="32" y="23" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="12" font-weight="700" fill="#f0f6fc">AES-256-GCM</text>
+      <text x="124" y="23" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="11" font-weight="400" fill="#8b949e">DPAPI sealed</text>
     </g>
 
-    <!-- Pill 3: Glide Selection -->
-    <g transform="translate(410, 0)">
-      <rect width="186" height="42" rx="8" fill="#161b22" stroke="#30363d" stroke-width="1"/>
-      <circle cx="20" cy="21" r="5" fill="#d29922"/>
-      <text x="34" y="25" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="12" font-weight="700" fill="#f0f6fc">Glide Select</text>
-      <text x="110" y="25" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="11" font-weight="500" fill="#8b949e">Ordered paste</text>
+    <!-- Pill 3: Glide Select -->
+    <g transform="translate(420, 0)">
+      <rect width="186" height="38" rx="6" fill="#161b22" stroke="#30363d" stroke-width="1"/>
+      <circle cx="18" cy="19" r="4.5" fill="#d29922"/>
+      <text x="32" y="23" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="12" font-weight="700" fill="#f0f6fc">Glide select</text>
+      <text x="108" y="23" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="11" font-weight="400" fill="#8b949e">multi-paste</text>
     </g>
 
     <!-- Pill 4: Zero Polling -->
-    <g transform="translate(608, 0)">
-      <rect width="176" height="42" rx="8" fill="#161b22" stroke="#30363d" stroke-width="1"/>
-      <circle cx="20" cy="21" r="5" fill="#bc8cff"/>
-      <text x="34" y="25" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="12" font-weight="700" fill="#f0f6fc">0% Idle CPU</text>
-      <text x="110" y="25" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="11" font-weight="500" fill="#8b949e">Event driven</text>
+    <g transform="translate(618, 0)">
+      <rect width="182" height="38" rx="6" fill="#161b22" stroke="#30363d" stroke-width="1"/>
+      <circle cx="18" cy="19" r="4.5" fill="#bc8cff"/>
+      <text x="32" y="23" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="12" font-weight="700" fill="#f0f6fc">0% idle CPU</text>
+      <text x="112" y="23" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="11" font-weight="400" fill="#8b949e">event driven</text>
     </g>
   </g>
 </svg>
