@@ -34,7 +34,7 @@ from PyQt6.QtGui import (QIcon, QPixmap, QImage, QColor, QFont, QKeySequence,
 from PyQt6.QtSvg import QSvgRenderer
 from PyQt6.QtWidgets import (
     QApplication, QWidget, QVBoxLayout, QHBoxLayout, QLabel,
-    QLineEdit, QPushButton, QScrollArea, QFrame, QMessageBox,
+    QLineEdit, QPushButton, QScrollArea, QFrame, QDialog,
     QSizePolicy
 )
 
@@ -282,6 +282,46 @@ QLabel.section-caret {
     background: transparent;
 }
 
+/* Same square as the rows below it, so the column reads as one control. */
+QPushButton.section-pick {
+    background: transparent;
+    border: 1px solid #3a3a3a;
+    border-radius: 0px;
+    min-width: 14px;
+    max-width: 14px;
+    min-height: 14px;
+    max-height: 14px;
+    padding: 0px;
+}
+QPushButton.section-pick:hover {
+    border-color: #6a6a6a;
+    background-color: #161616;
+}
+QPushButton.section-pick[active="true"] {
+    background-color: #ededed;
+    border-color: #ededed;
+}
+
+QPushButton.delete-sel {
+    background-color: #241313;
+    color: #ff6b6b;
+    border: 1px solid #5a2727;
+    border-radius: 0px;
+    padding: 8px 16px;
+    font-size: 13px;
+    font-weight: 600;
+}
+QPushButton.delete-sel:hover {
+    background-color: #341a1a;
+    border-color: #7d3535;
+    color: #ff8f8f;
+}
+QPushButton.delete-sel:disabled {
+    background-color: #0d0d0d;
+    color: #4a4a4a;
+    border-color: #181818;
+}
+
 QLabel.section-label {
     color: #6e6e6e;
     font-size: 10px;
@@ -432,22 +472,72 @@ QLabel.empty-note {
     padding-top: 30px;
 }
 
-QMessageBox {
-    background-color: #000000;
-    color: #ededed;
-}
-QMessageBox QLabel {
-    color: #ededed;
-}
-QMessageBox QPushButton {
-    background-color: #1a1a1a;
-    color: #ededed;
+QDialog#app-dialog {
+    background-color: #0a0a0a;
     border: 1px solid #333333;
     border-radius: 0px;
-    padding: 6px 14px;
 }
-QMessageBox QPushButton:hover {
-    background-color: #2a2a2a;
+QLabel.dialog-head {
+    color: #f4f4f4;
+    font-size: 15px;
+    font-weight: 700;
+}
+QLabel.dialog-body {
+    color: #9a9a9a;
+    font-size: 12px;
+}
+QLineEdit#dialog-input {
+    background-color: #080808;
+    color: #f2f2f2;
+    border: 1.5px solid #1e1e1e;
+    border-radius: 0px;
+    padding: 9px 12px;
+    font-size: 13px;
+    selection-background-color: #333333;
+}
+QLineEdit#dialog-input:focus {
+    border: 1.5px solid #3a3a3a;
+    background-color: #0c0c0c;
+}
+QPushButton.dialog-cancel {
+    background-color: #161616;
+    color: #ffffff;
+    border: 1px solid #2a2a2a;
+    border-radius: 0px;
+    padding: 8px 18px;
+    font-size: 13px;
+    font-weight: 600;
+}
+QPushButton.dialog-cancel:hover {
+    background-color: #232323;
+    border-color: #3a3a3a;
+}
+QPushButton.dialog-ok {
+    background-color: #2c2c2c;
+    color: #ffffff;
+    border: 1px solid #4a4a4a;
+    border-radius: 0px;
+    padding: 8px 18px;
+    font-size: 13px;
+    font-weight: 700;
+}
+QPushButton.dialog-ok:hover {
+    background-color: #3a3a3a;
+    border-color: #6a6a6a;
+}
+QPushButton.dialog-danger {
+    background-color: #241313;
+    color: #ff6b6b;
+    border: 1px solid #5a2727;
+    border-radius: 0px;
+    padding: 8px 18px;
+    font-size: 13px;
+    font-weight: 700;
+}
+QPushButton.dialog-danger:hover {
+    background-color: #341a1a;
+    border-color: #7d3535;
+    color: #ff8f8f;
 }
 """
 
@@ -495,14 +585,146 @@ def load_thumbnail(img_path: Path):
         pass
     return scaled
 
+class _Scrim(QLabel):
+    """A blurred, dimmed copy of the window, laid over it while a dialog is up.
+
+    Qt's blur effect wants a whole graphics scene; scaling the grab down and
+    back up is a box blur by another name, runs in about a millisecond, and
+    nothing here is on screen long enough to tell the difference.
+    """
+
+    SHRINK = 7
+
+    def __init__(self, target):
+        super().__init__(target)
+        shot = target.grab()
+        w = max(1, shot.width() // self.SHRINK)
+        h = max(1, shot.height() // self.SHRINK)
+        blurred = shot.scaled(
+            w, h, Qt.AspectRatioMode.IgnoreAspectRatio,
+            Qt.TransformationMode.SmoothTransformation
+        ).scaled(
+            shot.size(), Qt.AspectRatioMode.IgnoreAspectRatio,
+            Qt.TransformationMode.SmoothTransformation
+        )
+        painter = QPainter(blurred)
+        painter.fillRect(blurred.rect(), QColor(0, 0, 0, 150))
+        painter.end()
+
+        self.setPixmap(blurred)
+        self.setGeometry(target.rect())
+        self.raise_()
+        self.show()
+
+
+class AppDialog(QDialog):
+    """The app's own dialog: no title bar, no OS icon, square corners.
+
+    The question goes in the body. A title bar would say the same thing in the
+    system's font on the system's frame, which is exactly what this replaces.
+    """
+
+    def __init__(self, parent, head, body, ok_text, danger=False, secret=False):
+        super().__init__(parent)
+        self.setObjectName("app-dialog")
+        self.setWindowFlags(Qt.WindowType.Dialog | Qt.WindowType.FramelessWindowHint)
+        self.setModal(True)
+        self.setStyleSheet(POPUP_QSS)
+        self.field = None
+        self._scrim = _Scrim(parent) if parent is not None else None
+
+        lay = QVBoxLayout(self)
+        lay.setContentsMargins(22, 20, 22, 18)
+        lay.setSpacing(10)
+
+        head_lbl = QLabel(head)
+        head_lbl.setProperty("class", "dialog-head")
+        head_lbl.setWordWrap(True)
+        lay.addWidget(head_lbl)
+
+        if body:
+            body_lbl = QLabel(body)
+            body_lbl.setProperty("class", "dialog-body")
+            body_lbl.setWordWrap(True)
+            lay.addWidget(body_lbl)
+
+        if secret:
+            self.field = QLineEdit()
+            self.field.setObjectName("dialog-input")
+            self.field.setEchoMode(QLineEdit.EchoMode.Password)
+            self.field.returnPressed.connect(self.accept)
+            lay.addSpacing(2)
+            lay.addWidget(self.field)
+
+        lay.addSpacing(6)
+
+        row = QHBoxLayout()
+        row.setSpacing(10)
+        row.addStretch(1)
+
+        cancel = QPushButton("Cancel")
+        cancel.setProperty("class", "dialog-cancel")
+        cancel.setCursor(Qt.CursorShape.PointingHandCursor)
+        cancel.clicked.connect(self.reject)
+        row.addWidget(cancel)
+
+        ok = QPushButton(ok_text)
+        ok.setProperty("class", "dialog-danger" if danger else "dialog-ok")
+        ok.setCursor(Qt.CursorShape.PointingHandCursor)
+        ok.setDefault(True)
+        ok.clicked.connect(self.accept)
+        row.addWidget(ok)
+
+        lay.addLayout(row)
+
+        self.setFixedWidth(380)
+        self.adjustSize()
+
+    def showEvent(self, event):
+        super().showEvent(event)
+        self._centre()
+        if self.field is not None:
+            self.field.setFocus()
+
+    def _centre(self):
+        parent = self.parentWidget()
+        area = parent.geometry() if parent is not None else (
+            QApplication.primaryScreen().availableGeometry())
+        self.move(area.x() + (area.width() - self.width()) // 2,
+                  area.y() + (area.height() - self.height()) // 2)
+
+    def done(self, result):
+        if self._scrim is not None:
+            self._scrim.hide()
+            self._scrim.deleteLater()
+            self._scrim = None
+        super().done(result)
+
+
+def confirm(parent, head, body, ok_text="OK", danger=False) -> bool:
+    """Ask a yes/no question. True when the user agreed."""
+    dlg = AppDialog(parent, head, body, ok_text, danger=danger)
+    return dlg.exec() == QDialog.DialogCode.Accepted
+
+
+def ask_secret(parent, head, body) -> str:
+    """Ask for something that should not be echoed. None when cancelled."""
+    dlg = AppDialog(parent, head, body, "Unlock", secret=True)
+    if dlg.exec() != QDialog.DialogCode.Accepted:
+        return None
+    return dlg.field.text()
+
+
 class SectionHeader(QFrame):
-    """PINNED / RECENT heading with a disclosure triangle that folds the section."""
+    """PINNED / RECENT heading: a disclosure triangle that folds the section,
+    and a square that picks everything in it."""
 
     toggled = pyqtSignal(str)
+    pick_all = pyqtSignal(str)
 
     TRI_SIZE = 12       # drawn, not a glyph: see TRIANGLE_*_SVG
 
-    def __init__(self, name, collapsed, count, parent=None):
+    def __init__(self, name, collapsed, count, parent=None, all_picked=False):
         super().__init__(parent)
         self.name = name
         self.setProperty("class", "section-header")
@@ -524,6 +746,17 @@ class SectionHeader(QFrame):
         self.label.setProperty("class", "section-label")
         self.label.setAlignment(Qt.AlignmentFlag.AlignVCenter | Qt.AlignmentFlag.AlignLeft)
         lay.addWidget(self.label, 0, Qt.AlignmentFlag.AlignVCenter)
+
+        lay.addSpacing(4)
+
+        self.pick_btn = QPushButton()
+        self.pick_btn.setProperty("class", "section-pick")
+        self.pick_btn.setProperty("active", "true" if all_picked else "false")
+        self.pick_btn.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.pick_btn.setToolTip(f"Pick every clip under {name}")
+        self.pick_btn.clicked.connect(lambda: self.pick_all.emit(self.name))
+        lay.addWidget(self.pick_btn, 0, Qt.AlignmentFlag.AlignVCenter)
+
         lay.addStretch(1)
 
     def mouseReleaseEvent(self, event):
@@ -1034,6 +1267,14 @@ class ClipboardPopup(QWidget):
         self.clear_sel_btn.clicked.connect(self._clear_queue)
         footer_layout.addWidget(self.clear_sel_btn)
 
+        self.delete_sel_btn = QPushButton("Delete")
+        self.delete_sel_btn.setProperty("class", "delete-sel")
+        self.delete_sel_btn.setToolTip("Delete the picked clips, pinned ones included")
+        self.delete_sel_btn.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.delete_sel_btn.setEnabled(False)
+        self.delete_sel_btn.clicked.connect(self._delete_selected)
+        footer_layout.addWidget(self.delete_sel_btn)
+
         self.paste_btn = QPushButton("Paste selected  ⏎")
         self.paste_btn.setProperty("class", "paste-btn")
         self.paste_btn.setCursor(Qt.CursorShape.PointingHandCursor)
@@ -1103,18 +1344,27 @@ class ClipboardPopup(QWidget):
         self._refresh_selection_ui()
         self._schedule_remaining_rows()
 
-    def _render_slice(self, gen, count):
-        """Draw up to `count` more rows from the plan. Returns rows drawn."""
+    def _render_slice(self, gen, budget):
+        """Draw up to `budget` more rows from the plan. Returns rows drawn.
+
+        The section's own count used to be unpacked into the same name as the
+        budget, so after a heading went by the loop was limited to however many
+        clips that heading claimed - a PINNED (2) stopped the first paint after
+        two rows and left everything else to the streaming passes.
+        """
         if gen != self._render_gen:
             return 0
         drawn = 0
-        while self._plan_pos < len(self._plan) and drawn < count:
+        while self._plan_pos < len(self._plan) and drawn < budget:
             kind, payload = self._plan[self._plan_pos]
             self._plan_pos += 1
             if kind == "section":
-                name, count = payload
-                header = SectionHeader(name, self.collapsed.get(name, False), count)
+                name, section_count = payload
+                header = SectionHeader(
+                    name, self.collapsed.get(name, False), section_count,
+                    all_picked=self._section_fully_picked(name))
                 header.toggled.connect(self._toggle_section)
+                header.pick_all.connect(self._pick_section)
                 self.list_layout.addWidget(header)
                 continue
             row = self._create_row(payload)
@@ -1165,11 +1415,16 @@ class ClipboardPopup(QWidget):
         if n:
             self.sel_lbl.setText(f"{n} selected — pastes in pick order")
             self.clear_sel_btn.setEnabled(True)
+            self.delete_sel_btn.setEnabled(True)
+            self.delete_sel_btn.setText(f"Delete {n}")
             self.cancel_btn.show()
         else:
             self.sel_lbl.setText("Tab, or drag down the list, to pick several")
             self.clear_sel_btn.setEnabled(False)
+            self.delete_sel_btn.setEnabled(False)
+            self.delete_sel_btn.setText("Delete")
             self.cancel_btn.hide()
+        self._refresh_section_picks()
 
     def _toggle_section(self, name):
         """Fold a section away, and remember it for next time."""
@@ -1271,6 +1526,74 @@ class ClipboardPopup(QWidget):
                 return row
         return None
 
+    def _section_ids(self, name):
+        """The ids currently drawn under a heading."""
+        want_pinned = (name == "PINNED")
+        return [row.item_id for row in self.row_widgets
+                if bool(row.item.get("pin")) == want_pinned]
+
+    def _section_fully_picked(self, name):
+        ids = self._section_ids(name)
+        return bool(ids) and all(i in self.queue for i in ids)
+
+    def _pick_section(self, name):
+        """Pick every clip under a heading, or drop them all if they are
+        already picked."""
+        ids = self._section_ids(name)
+        if not ids:
+            return
+        if all(i in self.queue for i in ids):
+            for i in ids:
+                self._queue_remove(i)
+        else:
+            for i in ids:
+                self._queue_add(i)
+        self._refresh_selection_ui()
+        self._refresh_section_picks()
+
+    def _refresh_section_picks(self):
+        """Keep each heading's square in step with what is picked."""
+        for header in self.findChildren(SectionHeader):
+            state = "true" if self._section_fully_picked(header.name) else "false"
+            if header.pick_btn.property("active") != state:
+                header.pick_btn.setProperty("active", state)
+                header.pick_btn.style().unpolish(header.pick_btn)
+                header.pick_btn.style().polish(header.pick_btn)
+
+    def _delete_selected(self):
+        """Remove every picked clip - pinned ones included.
+
+        Clear all deliberately spares pinned clips; this is the other half of
+        that, where what gets removed is exactly what was picked.
+        """
+        ids = list(self.queue)
+        if not ids:
+            return
+        if len(ids) > 1:
+            self.focus_out_ready = False
+            agreed = confirm(
+                self,
+                f"Delete {len(ids)} picked clips?",
+                "Pinned clips among them go too. This cannot be undone.",
+                ok_text=f"Delete {len(ids)}",
+                danger=True,
+            )
+            self.focus_out_ready = True
+            if not agreed:
+                return
+
+        items = load_index()
+        doomed = set(ids)
+        kept = []
+        for it in items:
+            if it["id"] in doomed:
+                self._erase_files(it)
+            else:
+                kept.append(it)
+        save_index(kept)
+        self.queue.clear()
+        self.populate(self.search.text())
+
     def _queue_add(self, item_id):
         if item_id in self.queue:
             return False
@@ -1308,16 +1631,24 @@ class ClipboardPopup(QWidget):
         save_index(items)
         self.populate(self.search.text())
 
+    @staticmethod
+    def _erase_files(it):
+        """Everything a clip owns on disk: payload, rich-format sidecar and
+        thumbnail. The thumbnail used to be left behind on every delete."""
+        try:
+            (HISTORY_DIR / it["file"]).unlink(missing_ok=True)
+            if it.get("rich"):
+                (HISTORY_DIR / it["rich"]).unlink(missing_ok=True)
+            stem = it["file"].rsplit(".", 1)[0]
+            (THUMB_DIR / f"{stem}.png").unlink(missing_ok=True)
+        except Exception:
+            pass
+
     def _delete_item(self, item_id):
         items = load_index()
         for it in list(items):
             if it["id"] == item_id:
-                try:
-                    (HISTORY_DIR / it["file"]).unlink(missing_ok=True)
-                    if it.get("rich"):
-                        (HISTORY_DIR / it["rich"]).unlink(missing_ok=True)
-                except Exception:
-                    pass
+                self._erase_files(it)
                 items.remove(it)
                 break
         save_index(items)
@@ -1325,26 +1656,22 @@ class ClipboardPopup(QWidget):
 
     def _on_clear_all(self):
         self.focus_out_ready = False
-        reply = QMessageBox.question(
+        agreed = confirm(
             self,
             "Clear all clipboard history?",
             "Pinned items (★) are kept. This cannot be undone.",
-            QMessageBox.StandardButton.Ok | QMessageBox.StandardButton.Cancel
+            ok_text="Clear all",
+            danger=True,
         )
         self.focus_out_ready = True
-        if reply == QMessageBox.StandardButton.Ok:
+        if agreed:
             items = load_index()
             kept = []
             for it in items:
                 if it.get("pin"):
                     kept.append(it)
                 else:
-                    try:
-                        (HISTORY_DIR / it["file"]).unlink(missing_ok=True)
-                        if it.get("rich"):
-                            (HISTORY_DIR / it["rich"]).unlink(missing_ok=True)
-                    except Exception:
-                        pass
+                    self._erase_files(it)
             save_index(kept)
             self.queue.clear()
             self.populate()
