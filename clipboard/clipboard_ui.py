@@ -316,13 +316,13 @@ QFrame.item-row[queued="true"] {
     border: 1px solid #3a3a3a;
 }
 
-/* Nothing is drawn until the row is actually picked - a column of empty
-   circles was just noise. The space stays reserved so rows do not jump
-   sideways when a number appears, and a border fades in on hover so the
-   target is still findable with the mouse. */
+/* The square is drawn on every row, so there is something to aim at without
+   hovering along the list to find it. It stays empty until the row is picked
+   and then carries its place in the paste order - the column of empty circles
+   it used to hold was just noise. */
 QPushButton.sel-badge {
     background: transparent;
-    border: 1px solid transparent;
+    border: 1px solid #3a3a3a;
     border-radius: 0px;
     min-width: 22px;
     max-width: 22px;
