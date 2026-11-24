@@ -283,7 +283,10 @@ def process_clipboard_update():
                 app = active_app()
                 preview = text[:300].replace("\r\n", " ").replace("\n", " ").strip()
                 save_item(raw, "text", "txt", preview, app, rich=get_clip_rich())
-                logging.info(f"Saved text from {app}: {preview[:40]}...")
+                # Never the clip itself: this log sits in the same folder as
+                # the sealed store, in plain text, and a preview is still the
+                # user's data. Length and source are enough to debug with.
+                logging.info("Saved %d chars of text from %s", len(text), app)
     except Exception as e:
         logging.warning("process text update error: %s", e)
 

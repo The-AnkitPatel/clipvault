@@ -9,7 +9,9 @@ Design, in short - the reasoning behind each choice is in SECURITY.md:
     that on.
   * The name of the file being sealed is fed in as additional authenticated
     data, so a sealed clip cannot be lifted out and replayed as a different
-    entry, and the index cannot be swapped for an older one.
+    entry. Note what this does not cover: the AAD carries no version or
+    counter, so an *earlier* copy of the same file - an older index.json, say
+    - still opens. Rolling the store back is not detected.
   * The container is versioned. Older containers - including the pre-1.0
     DPAPI-only format and plain unencrypted files - are read transparently and
     rewritten in the current format on the next run.
