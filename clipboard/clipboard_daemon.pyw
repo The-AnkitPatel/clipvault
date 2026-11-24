@@ -526,12 +526,17 @@ def setup():
 
 
 def ask_passphrase(attempt):
-    """Prompt for the vault passphrase. Only reached if one has been set."""
-    from PyQt6.QtWidgets import QInputDialog, QLineEdit
-    prompt = ("Enter your ClipVault passphrase:" if attempt == 0
-              else "That passphrase did not open the vault. Try again:")
-    text, ok = QInputDialog.getText(None, "ClipVault", prompt, QLineEdit.EchoMode.Password)
-    return (text if ok else None)
+    """Prompt for the vault passphrase. Only reached if one has been set.
+
+    Uses the app's own dialog rather than QInputDialog, so the first thing a
+    user sees at login is not a system-framed box with a title bar.
+    """
+    from clipboard_ui import ask_secret
+    head = ("Unlock ClipVault" if attempt == 0
+            else "That passphrase did not open the vault")
+    body = ("Your clipboard history is encrypted. Enter the passphrase to "
+            "unlock it." if attempt == 0 else "Try again.")
+    return ask_secret(None, head, body)
 
 
 def open_the_vault():
